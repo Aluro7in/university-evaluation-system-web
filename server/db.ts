@@ -90,3 +90,129 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // TODO: add feature queries here as your schema grows.
+import { InsertStudent, InsertCourse, InsertEnrollment, InsertGrade, students, courses, enrollments, grades } from "../drizzle/schema";
+
+// Student queries
+export async function getStudentByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(students).where(eq(students.userId, userId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getStudentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(students).where(eq(students.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllStudents() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(students);
+}
+
+export async function createStudent(data: InsertStudent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.insert(students).values(data);
+}
+
+export async function updateStudent(id: number, data: Partial<InsertStudent>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.update(students).set(data).where(eq(students.id, id));
+}
+
+export async function deleteStudent(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.delete(students).where(eq(students.id, id));
+}
+
+// Course queries
+export async function getAllCourses() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(courses);
+}
+
+export async function getCourseById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(courses).where(eq(courses.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createCourse(data: InsertCourse) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.insert(courses).values(data);
+}
+
+// Enrollment queries
+export async function enrollStudent(data: InsertEnrollment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.insert(enrollments).values(data);
+}
+
+export async function getStudentEnrollments(studentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select({
+      enrollment: enrollments,
+      course: courses,
+    })
+    .from(enrollments)
+    .innerJoin(courses, eq(enrollments.courseId, courses.id))
+    .where(eq(enrollments.studentId, studentId));
+}
+
+export async function unenrollStudent(enrollmentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.delete(enrollments).where(eq(enrollments.id, enrollmentId));
+}
+
+// Grade queries
+export async function setGrade(data: InsertGrade) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db
+    .select()
+    .from(grades)
+    .where(eq(grades.enrollmentId, data.enrollmentId))
+    .limit(1);
+  
+  if (existing.length > 0) {
+    return await db.update(grades).set(data).where(eq(grades.enrollmentId, data.enrollmentId));
+  } else {
+    return await db.insert(grades).values(data);
+  }
+}
+
+export async function getStudentGrades(studentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select({
+      grade: grades,
+      course: courses,
+      enrollment: enrollments,
+    })
+    .from(grades)
+    .innerJoin(courses, eq(grades.courseId, courses.id))
+    .innerJoin(enrollments, eq(grades.enrollmentId, enrollments.id))
+    .where(eq(grades.studentId, studentId));
+}
+
+export async function getStudentGradesByEnrollment(enrollmentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(grades).where(eq(grades.enrollmentId, enrollmentId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
